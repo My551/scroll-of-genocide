@@ -75,6 +75,8 @@ canvas#scene{image-rendering:pixelated;image-rendering:crisp-edges;display:block
 .row.mine .name{color:var(--flame)}
 .row.ref .bar i{background:var(--blood)}
 .row.unk .bar i{background:var(--ash)}
+.row.oth .name{color:var(--dim)}
+.row.oth .bar i{background:var(--dim)}
 .sep{border:0;border-top:1px dashed var(--line);margin:4px 0}
 @media (prefers-reduced-motion:reduce){.msg .cur{animation:none}}
 </style>
@@ -937,17 +939,20 @@ async function judge(raw){
     if (r.status === 429) return {verdict:'unknown', slow:true};
     if (r.ok){ const j = await r.json(); if (['forbidden','creature','unknown'].includes(j.verdict)) return j; }
   }catch(e){ /* offline or server down: judge locally, nothing is recorded */ }
-  if (t === '@' || PEOPLE.test(t)) return {verdict:'forbidden'};
-  if (ANIMALS.test(t)) return {verdict:'creature', name:cleanName(t)};
-  return {verdict:'unknown'};
+  if (t === '@' || PEOPLE.test(t)) return {verdict:'forbidden', offline:true};
+  if (ANIMALS.test(t)) return {verdict:'creature', name:cleanName(t), offline:true};
+  return {verdict:'unknown', offline:true};
 }
 
 /* ---------- tally of the slain (shared by every player, from the server) ---------- */
 let myLast = null, tally = null;
+let mine = []; try{ mine = JSON.parse(ls.get('sog.mine') || '[]'); if (!Array.isArray(mine)) mine = []; }catch(e){ mine = []; }
+function rememberMine(name){ if (!name) return; mine = [name, ...mine.filter(n => n !== name)].slice(0, 12); ls.set('sog.mine', JSON.stringify(mine)); }
 let answered = ls.get('sog.answered') === '1';
 function record(){ /* the server already recorded this answer when it judged it */ }
 async function loadTally(){
-  try{ const r = await fetch('/api/tally', {cache:'no-store'}); if (r.ok) tally = await r.json(); }catch(e){}
+  try{ const q = mine.length ? '?mine=' + encodeURIComponent(mine.join(',')) : '';
+    const r = await fetch('/api/tally' + q, {cache:'no-store'}); if (r.ok) tally = await r.json(); }catch(e){}
   return tally;
 }
 async function renderLedger(){
@@ -956,7 +961,7 @@ async function renderLedger(){
   await loadTally();
   rows.textContent = '';
   if (!tally){ sub.textContent = 'The ledger cannot be reached right now. Try again in a moment.'; return; }
-  const {creatures = [], slain = 0, forbidden = 0, unknown = 0} = tally;
+  const {creatures = [], own = [], slain = 0, forbidden = 0, unknown = 0} = tally;
   const total = slain + forbidden + unknown;
   sub.textContent = `${total.toLocaleString('en')} scroll${total===1?'':'s'} read by mortals so far.`;
   const pct = n => total ? Math.round(n/total*1000)/10 : 0;
@@ -968,8 +973,12 @@ async function renderLedger(){
     const bar = document.createElement('span'); bar.className='bar'; const i = document.createElement('i'); i.style.width = Math.max(pct(n), n ? 0.6 : 0)+'%'; bar.append(i);
     li.append(a,b,c,bar); rows.append(li);
   };
-  creatures.forEach(c => add(c.name, c.n, c.name === myLast ? 'mine' : ''));
-  if (myLast && !creatures.some(c => c.name === myLast)) add(myLast + ' (yours)', 1, 'mine');
+  const listed = new Set(creatures.map(c => c.name)), myset = new Set(mine);
+  creatures.forEach(c => add(myset.has(c.name) ? c.name + ' (yours)' : c.name, c.n, myset.has(c.name) ? 'mine' : ''));
+  let shown = creatures.reduce((a, c) => a + c.n, 0);
+  for (const o of own) if (!listed.has(o.name)){ add(o.name + ' (yours)', o.n, 'mine'); shown += o.n; }
+  const others = slain - shown;
+  if (others > 0) add('Other creatures', others, 'oth');
   if (forbidden || unknown){ const hr = document.createElement('hr'); hr.className='sep'; rows.append(hr); }
   if (forbidden) add('Refused by the gods', forbidden, 'ref');
   if (unknown) add('Creatures not of this world', unknown, 'unk');
@@ -1002,6 +1011,7 @@ form.addEventListener('submit', async e => {
   const v = await verdictP;
   const line = v.slow ? 'Patience, mortal. The scroll needs a moment.' : v.verdict === 'creature' ? `Wiped out all ${v.name}.` : LINES[v.verdict];
   myLast = v.verdict === 'creature' ? v.name : null;
+  if (myLast && !v.offline) rememberMine(myLast);
   record(v);
   if (v.verdict !== 'unknown' && !v.slow) doomBoom(v.verdict === 'forbidden' ? 0.95 : 0.75);
   await say(line, v.verdict, v.slow ? null : clipFor(v.verdict, v.name));
