@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Scroll of Genocide</title>
+<meta name="description" content="Read the scroll of genocide. Name the creatures you wish wiped from the world, and see what every other mortal chose.">
+<meta property="og:title" content="Scroll of Genocide">
+<meta property="og:description" content="What class of monsters do you wish to genocide?">
+<meta property="og:image" content="/scene.png">
+<meta name="theme-color" content="#0c0907">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Dancing+Script:wght@700&family=Grenze+Gotisch:wght@600&display=swap">
+<style>
+/* Layout: one-screen dungeon desk — the scroll scene fills the screen, the god's words float as a fading caption over the wall, the quill line at the bottom. */
+:root{
+  --bg:#0c0907;         /* dungeon dark */
+  --stone:#1a1410;      /* bar surfaces */
+  --line:#3a2c20;       /* hairlines */
+  --text:#dccbaa;       /* terminal parchment-white */
+  --dim:#8f7c62;
+  --flame:#f2a33a;      /* accent: candlelight */
+  --blood:#d2452c;      /* refusal */
+  --ash:#a59a8c;        /* unknown */
+  --f-term:"VT323",ui-monospace,"Courier New",monospace;
+  --f-black:"Grenze Gotisch","Times New Roman",serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0}
+*,*::before,*::after{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--text);font-family:var(--f-term);font-size:20px;overflow:hidden}
+.app{height:100%;display:flex;flex-direction:column;max-width:620px;margin:0 auto;padding-inline:16px;padding-block:10px;gap:10px;box-sizing:border-box}
+.frame{position:relative;flex:none}
+.msg{position:absolute;left:50%;top:1.2%;transform:translateX(-50%);width:min(88%,30em);box-sizing:border-box;text-align:center;
+  background:color-mix(in srgb,var(--bg) 78%,transparent);padding:6px 10px;line-height:1.05;font-size:clamp(18px,4.6vw,24px);letter-spacing:.02em;
+  pointer-events:none;transition:opacity .6s}
+.msg.fade{opacity:0}
+.msg:empty{display:none}
+.gate{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:inherit;font-size:clamp(22px,6vw,30px);color:var(--flame);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid var(--flame);padding:10px 18px;cursor:pointer;border-radius:0;white-space:nowrap}
+.gate:hover{background:var(--stone)}
+.gate:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.msg .cur{display:inline-block;width:.55em;height:.9em;background:var(--text);vertical-align:-0.08em;animation:blink 1s steps(1) infinite}
+.msg.creature{color:var(--flame)}
+.msg.forbidden{color:var(--blood)}
+.msg.unknown{color:var(--ash)}
+@keyframes blink{50%{opacity:0}}
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+canvas#scene{image-rendering:pixelated;image-rendering:crisp-edges;display:block;box-shadow:0 0 0 1px var(--line)}
+.quill{display:flex;gap:8px}
+.quill input{flex:1;min-width:0;font:inherit;font-size:22px;background:var(--stone);color:var(--text);border:1px solid var(--line);padding:8px 10px;border-radius:0}
+.quill input:focus-visible{outline:2px solid var(--flame);outline-offset:1px}
+.btn{font:inherit;font-size:22px;background:var(--stone);color:var(--flame);border:1px solid var(--flame);padding:6px 14px;cursor:pointer;border-radius:0}
+.btn:hover{background:#2a1d12}
+.btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.btn:disabled{opacity:.4;cursor:default}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:18px;color:var(--dim)}
+.link{font:inherit;background:none;border:0;color:var(--dim);cursor:pointer;padding:2px 0;text-decoration:underline;text-underline-offset:3px}
+.link:hover,.link[aria-pressed="true"]{color:var(--flame)}
+.link:focus-visible{outline:1px solid var(--flame)}
+/* tally ledger */
+.ledger{position:absolute;inset:0;background:color-mix(in srgb,var(--bg) 93%,transparent);border:1px solid var(--line);display:flex;flex-direction:column;padding:16px;gap:10px;overflow:auto}
+.ledger h2{font-family:var(--f-black);font-weight:600;color:var(--flame);font-size:30px;margin:0;text-wrap:balance}
+.ledger .sub{color:var(--dim);font-size:18px;margin:0}
+.rows{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 10px;align-items:baseline;font-size:21px}
+.row .name{min-width:0;overflow-wrap:anywhere}
+.row .n,.row .p{font-variant-numeric:tabular-nums;color:var(--dim)}
+.row .bar{grid-column:1/-1;height:6px;background:var(--stone)}
+.row .bar i{display:block;height:100%;background:var(--flame)}
+.row.mine .name{color:var(--flame)}
+.row.ref .bar i{background:var(--blood)}
+.row.unk .bar i{background:var(--ash)}
+.sep{border:0;border-top:1px dashed var(--line);margin:4px 0}
+@media (prefers-reduced-motion:reduce){.msg .cur{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="frame" id="frame">
+      <canvas id="scene" width="941" height="1672" aria-label="A scroll of genocide on a dungeon desk, lit by two candles"></canvas>
+      <div class="msg" id="msg" aria-live="polite"></div>
+      <button class="gate" id="gate" type="button">Touch the scroll</button>
+    </div>
+    <section class="ledger" id="ledger" hidden aria-label="Tally of the slain">
+      <h2>Tally of the Slain</h2>
+      <p class="sub" id="ledgerSub"></p>
+      <ul class="rows" id="rows"></ul>
+    </section>
+  </div>
+  <form class="quill" id="quill" autocomplete="off">
+    <label for="answer" hidden>Creature to genocide</label>
+    <input id="answer" name="answer" maxlength="40" placeholder="Name the creatures…" spellcheck="false">
+    <button class="btn" id="inscribe" type="submit">Read</button>
+  </form>
+  <div class="meta">
+    <button class="link" id="voiceBtn" type="button" aria-pressed="true">Voice: on</button>
+    <a class="link" href="/about.html">About</a>
+    <button class="link" id="tallyBtn" type="button" hidden aria-pressed="false">Tally of the slain</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const QUESTION = "What class of monsters do you wish to genocide?";
+const LINES = {
+  forbidden: "No, mortal! That will not be done.",
+  unknown: "Such creatures no longer exist in this world."
+};
+// Empty frame on the scroll (scene pixels) and ink pixel size
+const BOX = {x:492, y:1070, w:286, h:100}, P = 2;
+const FW = 256, FH = 176, FRAMES = 6, FRAME_MS = 110;
+
+const cv = document.getElementById('scene'), ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const msg = document.getElementById('msg'), input = document.getElementById('answer');
+const form = document.getElementById('quill'), inscribeBtn = document.getElementById('inscribe');
+const voiceBtn = document.getElementById('voiceBtn'), tallyBtn = document.getElementById('tallyBtn');
+const ledger = document.getElementById('ledger');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- storage helpers ---------- */
+const ls = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+
+/* ---------- scene + burn engine ---------- */
+const W = 941, H = 1672, PX = 4, LW = Math.ceil(W/PX), LH = Math.ceil(H/PX), BURN_Y = 140;
+const BURN = ['frag','ash','circle'];   // what lies beneath the burning scroll, then the conjuring circle
+const mk = (w,h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const imgLoad = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+let flamesImg = null, frame = 0, ink = null, seq = null, burnReady = Promise.resolve(false);
+const layers = [], low = [], hot = [], ORD = [], diffCache = {};
+
+Promise.all([imgLoad('scene.png'), imgLoad('flames.png')]).then(([s, f]) => {
+  flamesImg = f;
+  const c = mk(W,H); c.getContext('2d').drawImage(s,0,0); layers[0] = c;
+  fit(); requestAnimationFrame(tick);
+  burnReady = loadBurn().then(() => { setTimeout(()=>{ if (!nextOrders) nextOrders = makeOrders(); }, 200); return true; }, () => false);
+});
+
+function lowRes(c){
+  const l = mk(LW,LH), x = l.getContext('2d', {willReadFrequently:true});
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+  x.drawImage(c, 0, 0, W/PX, H/PX);
+  return x.getImageData(0,0,LW,LH).data;
+}
+const sil = new Uint8Array(LW*LH);            // where the scroll lives (4px blocks)
+let silEdge = new Int32Array(0);
+const rowSpan = new Int16Array(LH*2);           // per block row: first/last scroll block (for heat haze)
+async function loadBurn(){
+  const [silImg, ...ims] = await Promise.all(['sil.png', ...BURN.map(n => 'burn_'+n+'.webp')].map(imgLoad));
+  const sc = mk(LW,LH), sx = sc.getContext('2d', {willReadFrequently:true}); sx.drawImage(silImg,0,0);
+  const sd = sx.getImageData(0,0,LW,LH).data;
+  for (let j=0;j<LW*LH;j++) sil[j] = sd[j*4] > 127 ? 1 : 0;
+  const edge = [];
+  for (let y=0;y<LH;y++){
+    let a = -1, b = -1;
+    for (let x=0;x<LW;x++){ const j = y*LW+x; if (!sil[j]) continue; if (a<0) a = x; b = x;
+      if (!sil[j-1] || !sil[j+1] || !sil[j-LW] || !sil[j+LW]) edge.push(j); }
+    rowSpan[y*2] = a; rowSpan[y*2+1] = b;
+  }
+  silEdge = Int32Array.from(edge);
+  ims.forEach((im,i) => { const c = mk(W,H), x = c.getContext('2d'); x.drawImage(layers[0],0,0); x.drawImage(im,0,BURN_Y); layers[i+1] = c; });
+  layers.forEach((c,i) => { low[i] = lowRes(c); });
+  const B = low[0];
+  for (let i=0;i<layers.length;i++){
+    const L = low[i], list = [];
+    if (i) for (let j=0,p=0;j<LW*LH;j++,p+=4){
+      if (!sil[j]) continue;
+      const r=L[p], g=L[p+1], b=L[p+2];
+      const d = Math.abs(r-B[p])+Math.abs(g-B[p+1])+Math.abs(b-B[p+2]);
+      if (d > 60 && r > 195 && g > 70 && r-b > 105) list.push(j);
+    }
+    hot[i] = Int32Array.from(list);
+  }
+}
+
+/* burn order fields: smooth value noise, optionally biased edges-first or centre-out */
+function rng(seed){ let s = seed>>>0 || 1; return () => (s = (Math.imul(s,1664525) + 1013904223)>>>0) / 4294967296; }
+function valueNoise(seed){
+  const r = rng(seed), out = new Float32Array(LW*LH);
+  for (const [cell, amp] of [[22,0.5],[8,0.32],[2,0.18]]){
+    const gw = Math.ceil(LW/cell)+2, gh = Math.ceil(LH/cell)+2, g = new Float32Array(gw*gh);
+    for (let i=0;i<g.length;i++) g[i] = r();
+    for (let y=0;y<LH;y++){ const fy=y/cell, y0=fy|0, ty=fy-y0, sy=ty*ty*(3-2*ty);
+      for (let x=0;x<LW;x++){ const fx=x/cell, x0=fx|0, tx=fx-x0, sx=tx*tx*(3-2*tx);
+        const a=g[y0*gw+x0], b=g[y0*gw+x0+1], c=g[(y0+1)*gw+x0], d=g[(y0+1)*gw+x0+1];
+        out[y*LW+x] += amp*((a*(1-sx)+b*sx)*(1-sy)+(c*(1-sx)+d*sx)*sy);
+      }}
+  }
+  return out;
+}
+const CX = 480/PX, CY = 920/PX, RX = 420/PX, RY = 620/PX;
+function orderField(mode, seed, ang){
+  const n = valueNoise(seed), ca = Math.cos(ang||0), sa = Math.sin(ang||0);
+  for (let y=0;y<LH;y++) for (let x=0;x<LW;x++){
+    const i=y*LW+x, dx=(x-CX)/RX, dy=(y-CY)/RY, d=Math.min(1.4, Math.hypot(dx,dy));
+    if (mode === 'edges') n[i] = 0.55*n[i] + 0.45*(1.25 - d);
+    else if (mode === 'center') n[i] = 0.5*n[i] + 0.5*d;
+    else n[i] = 0.62*n[i] + 0.38*(dx*ca + dy*sa + 1.4)/2.8;   // fire creeping in from a random side
+  }
+  let lo = Infinity, hi = -Infinity;
+  for (const v of n){ if (v<lo) lo=v; if (v>hi) hi=v; }
+  for (let i=0;i<n.length;i++) n[i] = (n[i]-lo)/(hi-lo);
+  return n;
+}
+function diffMask(a, b){
+  const key = a+'-'+b; if (diffCache[key]) return diffCache[key];
+  const A = low[a], B = low[b], m = new Uint8Array(LW*LH);
+  for (let j=0,p=0;j<m.length;j++,p+=4) m[j] = sil[j] && (Math.abs(A[p]-B[p])+Math.abs(A[p+1]-B[p+1])+Math.abs(A[p+2]-B[p+2])) > 45 ? 1 : 0;
+  return diffCache[key] = m;
+}
+
+/* dissolve one stage into the next: blocky mask + glowing burn front */
+const FW_ = 0.065;
+const FIRE  = [[255,246,190],[255,200,72],[242,114,32],[140,40,18]];
+const MAGIC = [[255,253,232],[255,228,136],[250,178,66],[190,106,40]];
+const maskC = mk(LW,LH), maskX = maskC.getContext('2d'), maskD = maskX.createImageData(LW,LH);
+const frontC = mk(LW,LH), frontX = frontC.getContext('2d'), frontD = frontX.createImageData(LW,LH);
+const tmpC = mk(W,H), tmpX = tmpC.getContext('2d');
+const frontIdx = new Int32Array(LW*LH); let frontN = 0, curK = 0;
+function drawStep(st, k){
+  ctx.drawImage(st.from,0,0);
+  const kk = k*(1+FW_); curK = kk;
+  const md = maskD.data, fd = frontD.data, ord = st.order, diff = st.diff, pal = st.style === 'magic' ? MAGIC : FIRE;
+  frontN = 0;
+  for (let i=0,p=0;i<ord.length;i++,p+=4){
+    const o = ord[i];
+    md[p+3] = o < kk ? 255 : 0;
+    const t = (kk - o)/(FW_*st.jit[i]);
+    if (t >= 0 && t < 1 && diff[i]){
+      const c = pal[Math.min(3, (t*4 + (Math.random()<0.2 ? 1 : 0))|0)];
+      fd[p]=c[0]; fd[p+1]=c[1]; fd[p+2]=c[2]; fd[p+3]=255; frontIdx[frontN++] = i;
+    } else fd[p+3] = 0;
+  }
+  maskX.putImageData(maskD,0,0); frontX.putImageData(frontD,0,0);
+  tmpX.imageSmoothingEnabled = false;
+  tmpX.globalCompositeOperation = 'copy'; tmpX.drawImage(maskC, 0,0, LW*PX, LH*PX);
+  tmpX.globalCompositeOperation = 'source-in'; tmpX.drawImage(st.to,0,0);
+  tmpX.globalCompositeOperation = 'source-over';
+  ctx.drawImage(tmpC,0,0);
+  ctx.drawImage(frontC, 0,0, LW*PX, LH*PX);
+}
+/* living fire on still stages: random glowing blocks brighten and dim */
+function flicker(li, filter){
+  const h = hot[li]; if (!h || !h.length) return;
+  const n = Math.min(320, h.length*0.06|0);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i=0;i<n;i++){
+    const j = h[Math.random()*h.length|0]; if (filter && !filter(j)) continue;
+    ctx.fillStyle = Math.random()<0.5 ? 'rgba(255,170,60,.30)' : 'rgba(255,232,150,.24)';
+    ctx.fillRect((j%LW)*PX, (j/LW|0)*PX, PX, PX);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i=0;i<n/2;i++){
+    const j = h[Math.random()*h.length|0]; if (filter && !filter(j)) continue;
+    ctx.fillStyle = 'rgba(46,10,2,.38)'; ctx.fillRect((j%LW)*PX, (j/LW|0)*PX, PX, PX);
+  }
+  ctx.restore();
+}
+
+/* ---------- blocky particles (low-res layer, scaled up nearest-neighbour) ---------- */
+const parts = [];
+const pc = mk(LW,LH), px = pc.getContext('2d');
+const EMB = [[255,250,214],[255,216,92],[255,152,42],[222,82,26],[128,36,18]];
+const R = Math.random;
+function spawn(kind, x, y, o){
+  if (parts.length > 1500) return;
+  let p;
+  if (kind === 'ember') p = {k:0, vx:(R()-0.5)*8, vy:-(8+R()*26), life:0.5+R()*1.1, ph:R()*6.3, w: R()<0.12 ? 2 : 1};
+  else if (kind === 'spark'){ const a = -Math.PI/2 + (R()-0.5)*2.4, s = 30+R()*60; p = {k:1, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0.25+R()*0.45}; }
+  else if (kind === 'smoke') p = {k:2, vx:(R()-0.3)*4, vy:-(5+R()*9), life:1.4+R()*1.6, ph:R()*6.3, s0:1+(R()*2|0), s1:3+(R()*3|0), a:0.2+R()*0.2, g:55+(R()*50|0)};
+  else if (kind === 'dust') p = {k:5, vx:(R()-0.5)*5, vy:-(3+R()*7), life:0.7+R()*0.8, ph:R()*6.3};
+  else if (kind === 'magic') p = {k:3, vx:(R()-0.5)*4, vy:-(4+R()*10), life:0.6+R()*0.8, ph:R()*6.3};
+  else p = {k:4, vx:0, vy:-2, life:0.06+R()*0.08};
+  p.x = x; p.y = y; p.px = x; p.py = y; p.t = 0;
+  if (o) Object.assign(p, o);
+  parts.push(p);
+}
+function particles(dt, now){
+  px.clearRect(0,0,LW,LH);
+  for (let i=parts.length-1;i>=0;i--){
+    const p = parts[i]; p.t += dt;
+    if (p.t >= p.life || p.y < -6){ parts[i] = parts[parts.length-1]; parts.pop(); continue; }
+    p.px = p.x; p.py = p.y;
+    if (p.k === 1){ p.vy += 80*dt; p.vx *= 0.985; }
+    let vx = p.vx;
+    if (p.k === 0 || p.k === 5) vx += Math.sin(p.t*6 + p.ph)*3;
+    if (p.k === 2) vx += p.sw ? Math.sin(now*1.6 + p.cp + p.t*1.4)*p.sw*(0.5+p.t) : Math.sin(p.t*2 + p.ph)*1.5;
+    p.x += vx*dt; p.y += p.vy*dt;
+  }
+  // smoke underneath
+  for (const p of parts){ if (p.k !== 2) continue;
+    const f = p.t/p.life, s = Math.round(p.s0 + (p.s1-p.s0)*f);
+    px.globalAlpha = p.a * (f < 0.15 ? f/0.15 : (1-f)/0.85);
+    px.fillStyle = `rgb(${p.g},${p.g*0.95|0},${p.g*0.9|0})`;
+    const x = Math.round(p.x - s/2), y = Math.round(p.y - s/2);
+    if (s >= 3){ // pixel-round puff
+      for (let r=0;r<s;r++){ const v = (2*r+1-s)/s, ww = Math.max(1, Math.round(s*Math.sqrt(1-v*v))); px.fillRect(x + ((s-ww)>>1), y+r, ww, 1); }
+    } else px.fillRect(x,y,s,s);
+  }
+  // bright things on top
+  for (const p of parts){ if (p.k === 2) continue;
+    const f = p.t/p.life;
+    if (p.k === 0){
+      const c = EMB[Math.min(4, f*5|0)];
+      px.globalAlpha = f > 0.8 ? (1-f)/0.2 : 1; px.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      const w = f < 0.25 ? p.w : 1; px.fillRect(Math.round(p.x), Math.round(p.y), w, w);
+    } else if (p.k === 1){
+      px.globalAlpha = 0.55; px.fillStyle = 'rgb(240,120,36)'; px.fillRect(Math.round(p.px), Math.round(p.py), 1, 1);
+      px.globalAlpha = 1; px.fillStyle = f < 0.5 ? 'rgb(255,244,190)' : 'rgb(255,190,70)'; px.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    } else if (p.k === 3){
+      const tw = Math.abs(Math.sin(p.t*13 + p.ph)), x = Math.round(p.x), y = Math.round(p.y);
+      px.globalAlpha = tw*(1-f*0.6); px.fillStyle = 'rgb(255,242,180)'; px.fillRect(x,y,1,1);
+      if (tw > 0.6 && f < 0.7){ px.globalAlpha = tw*0.55; px.fillStyle = 'rgb(255,196,84)';
+        px.fillRect(x-1,y,1,1); px.fillRect(x+1,y,1,1); px.fillRect(x,y-1,1,1); px.fillRect(x,y+1,1,1); }
+    } else if (p.k === 5){
+      px.globalAlpha = 0.85*(1-f); px.fillStyle = `rgb(${p.c[0]},${p.c[1]},${p.c[2]})`; px.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    } else {
+      px.globalAlpha = 0.9; px.fillStyle = 'rgb(255,236,164)'; px.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    }
+  }
+  px.globalAlpha = 1;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(pc, 0,0, LW*PX, LH*PX);
+}
+/* candles: sparks, flame licks and a swaying smoke ribbon to break up the 6-frame loop */
+const CANDLES = [{x:88/PX, y:113/PX, ph:0, acc:0}, {x:199/PX, y:32/PX, ph:2.1, acc:0}];
+function candles(dt){
+  for (const c of CANDLES){
+    if (R() < dt*2.4) spawn('ember', c.x+(R()-0.5)*1.5, c.y-0.5, {vy:-(14+R()*22), vx:(R()-0.5)*5, life:0.35+R()*0.75});
+    if (R() < dt*0.7) spawn('spark', c.x, c.y, {vx:(R()-0.5)*26, vy:-(22+R()*30), life:0.2+R()*0.3});
+    if (R() < dt*6) spawn('lick', c.x+(R()-0.5)*1.4, c.y-0.5+R()*2, null);
+    c.acc += dt;
+    while (c.acc > 0.085){ c.acc -= 0.085;
+      spawn('smoke', c.x+(R()-0.5)*0.6, c.y-1.5, {vx:0, vy:-(7+R()*4), life:1.8+R()*1.3, s0:1, s1:R()<0.3?3:2, a:0.24+R()*0.12, g:168, sw:2.6, cp:c.ph});
+    }
+  }
+}
+function emitFrom(list, n, dt, kind, filter, o){
+  if (!n || !list) return;
+  let cnt = n*dt;
+  while (cnt > 0){
+    if (R() < cnt){ const j = list[R()*list.length|0]; if (!filter || filter(j)) spawn(kind, j%LW + R(), (j/LW|0) + R(), o); }
+    cnt -= 1;
+  }
+}
+function burst(li, n, kind){ const h = hot[li]; if (!h || !h.length) return; for (let i=0;i<n;i++){ const j = h[R()*h.length|0]; spawn(kind, j%LW + R(), (j/LW|0) + R()); } }
+
+/* ---------- the burning: one continuous fire front eats the real scroll ---------- */
+const fragMC = mk(LW,LH), fragMX = fragMC.getContext('2d'), fragMD = fragMX.createImageData(LW,LH);
+const ashMC = mk(LW,LH), ashMX = ashMC.getContext('2d'), ashMD = ashMX.createImageData(LW,LH);
+const overC = mk(LW,LH), overX = overC.getContext('2d'), overD = overX.createImageData(LW,LH);
+const tmp2C = mk(W,H), tmp2X = tmp2C.getContext('2d');
+const fState = new Uint8Array(LW*LH);   // 0 intact, 1 scorching, 2 ember edge, 3 burning remains, 4 ash
+function maskedLayer(maskC, tx, src){
+  tx.imageSmoothingEnabled = false;
+  tx.globalCompositeOperation = 'copy'; tx.drawImage(maskC, 0,0, LW*PX, LH*PX);
+  tx.globalCompositeOperation = 'source-in'; tx.drawImage(src,0,0);
+  tx.globalCompositeOperation = 'source-over';
+  return tx.canvas;
+}
+function drawFire(F, g){
+  ctx.drawImage(F.base,0,0);
+  const fm = fragMD.data, am = ashMD.data, od = overD.data, T = F.T, ST = F.settle;
+  frontN = 0;
+  for (let i=0,p=0;i<LW*LH;i++,p+=4){
+    fm[p+3] = 0; am[p+3] = 0; od[p+3] = 0; fState[i] = 0;
+    if (!sil[i]) continue;
+    const u = g - T[i];
+    if (u < -0.11) continue;
+    if (u < 0){                         // parchment browning ahead of the flame
+      const a = 1 + u/0.11; od[p]=52-a*30; od[p+1]=24-a*14; od[p+2]=8; od[p+3] = a*a*200|0; fState[i] = 1; continue;
+    }
+    if (u < F.edge[i]){                 // the glowing burn line
+      const c = FIRE[Math.min(3, (u/F.edge[i]*4 + (R()<0.22 ? 1 : 0))|0)];
+      od[p]=c[0]; od[p+1]=c[1]; od[p+2]=c[2]; od[p+3]=255; frontIdx[frontN++] = i; fState[i] = 2; continue;
+    }
+    fm[p+3] = 255; fState[i] = 3;
+    if (u > ST[i]){ am[p+3] = 255; fState[i] = 4; }
+    const v = u - F.edge[i];
+    if (v < 0.05){ od[p]=22; od[p+1]=9; od[p+2]=4; od[p+3] = (1 - v/0.05)*215|0; }   // charred rim
+  }
+  fragMX.putImageData(fragMD,0,0); ashMX.putImageData(ashMD,0,0); overX.putImageData(overD,0,0);
+  ctx.drawImage(maskedLayer(fragMC, tmpX, layers[1]),0,0);
+  ctx.drawImage(maskedLayer(ashMC, tmp2X, layers[2]),0,0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(overC, 0,0, LW*PX, LH*PX);
+}
+
+/* heat haze: shift a few 4px rows of the scroll sideways, wobbling the seams */
+const hazeC = mk(W,H), hazeX = hazeC.getContext('2d');
+function haze(amt, now){
+  if (amt <= 0.02) return;
+  hazeX.globalCompositeOperation = 'copy'; hazeX.drawImage(cv,0,0);
+  for (let y=0;y<LH;y++){
+    const a = rowSpan[y*2]; if (a < 0) continue;
+    const b = rowSpan[y*2+1];
+    const s = Math.sin(y*0.23 + now*9.5) + 0.7*Math.sin(y*0.061 - now*5.7);
+    const m = Math.abs(s); if (m < 1.62 - amt*0.6) continue;
+    const sh = (s > 0 ? 1 : -1) * PX * (m > 1.55 && amt > 0.7 ? 2 : 1);
+    const x0 = Math.max(0,(a-4)*PX), w0 = Math.min(W - x0, (b-a+9)*PX);
+    ctx.drawImage(hazeC, x0, y*PX, w0, PX, x0+sh, y*PX, w0, PX);
+  }
+}
+
+/* sequence runner: fire sweep, then ash -> conjuring circle -> new scroll */
+const isRemains = j => fState[j] === 3, isAsh = j => fState[j] === 4, isScorch = j => fState[j] === 1;
+function runSeq(dt, now){
+  seq.t += dt*1000;
+  if (seq.phase === 'fire'){
+    const F = seq.fire, k = Math.min(1, seq.t/F.ms), g = k*F.gEnd;
+    drawFire(F, g);
+    flicker(1, isRemains); flicker(2, isAsh);
+    haze(Math.min(1, k*3) * (1 - Math.max(0, k-0.75)*4), now);
+    const fl = frontIdx.subarray(0, frontN);
+    emitFrom(fl, Math.min(150, frontN*0.55), dt, 'ember');
+    emitFrom(fl, Math.min(45, frontN*0.16), dt, 'spark');
+    emitFrom(fl, Math.min(30, frontN*0.12), dt, 'smoke');
+    emitFrom(hot[1], 50, dt, 'ember', isRemains);
+    emitFrom(hot[1], 16, dt, 'smoke', isRemains);
+    emitFrom(hot[2], 20, dt, 'ember', isAsh);
+    if (k >= 1){ seq.phase = 'steps'; seq.t = 0; if (!reduce) burst(3, 40, 'magic');
+      if (sfx.ready && soundOn){ whoosh(0.9, 300, 1400, 0.25); chime(440, 0.12); chime(659.3, 0.09, 0.12); } }
+    return;
+  }
+  const st = seq.steps[seq.i];
+  if (seq.t < st.ms){
+    const k = seq.t/st.ms, e = k*k*(3-2*k);
+    drawStep(st, e);
+    const ord = st.order, toF = j => ord[j] < curK, fromF = j => ord[j] >= curK;
+    flicker(st.ti, toF); flicker(st.fi, fromF);
+    haze(0.45 * Math.sin(Math.PI*k), now);
+    const fl = frontIdx.subarray(0, frontN);
+    emitFrom(fl, Math.min(150, frontN*0.7), dt, 'magic');
+    emitFrom(silEdge, 18, dt, 'magic');
+    if (st.fi === 2){ emitFrom(fl, Math.min(28, frontN*0.12), dt, 'smoke', null, {g:85, a:0.24}); emitFrom(hot[2], 30, dt, 'ember', fromF); }
+  } else if (seq.t < st.ms + st.hold){
+    ctx.drawImage(st.to,0,0);
+    flicker(st.ti);
+    emitFrom(hot[st.ti], 60, dt, 'magic');
+  } else {
+    ctx.drawImage(st.to,0,0);
+    seq.i++; seq.t = 0;
+    if (!seq.steps[seq.i]){
+      const done = seq.done; seq = null;
+      if (sfx.ready && soundOn){ [523.3, 659.3, 784, 1046.5].forEach((f,i) => chime(f, 0.1, i*0.09)); }
+      if (!reduce) for (let i=0;i<70;i++){ const j = silEdge[R()*silEdge.length|0]; spawn('magic', j%LW+R(), (j/LW|0)+R()); }
+      done(); setTimeout(()=>{ nextOrders = makeOrders(); }, 300); return;
+    }
+  }
+}
+const inkC = mk(W,H);
+let ashSil = null;
+/* every burning is different: fresh noise, fire creeping from the edges and one random side */
+let nextOrders = null;
+function makeOrders(){
+  const seed = (R()*1e9)|0, ang = R()*Math.PI*2;
+  const e = orderField('edges', seed+1), d = orderField('noise', seed+2, ang), sN = valueNoise(seed+3);
+  const T = new Float32Array(LW*LH), settle = new Float32Array(LW*LH), edge = new Float32Array(LW*LH);
+  for (let i=0;i<T.length;i++){
+    T[i] = (0.62*e[i] + 0.38*d[i]) * 0.8 + R()*0.006;
+    settle[i] = 0.14 + sN[i]*0.32;
+    edge[i] = 0.022 + R()*0.03;
+  }
+  const jit = new Float32Array(LW*LH); for (let i=0;i<jit.length;i++) jit[i] = 0.55 + R()*1.1;
+  return {T, settle, edge, jit, c1: orderField('center', seed+6), c2: orderField('center', seed+7)};
+}
+async function burnSequence(){
+  const ok = await burnReady;
+  if (!ok || !layers[3]){ await animate(900, k => { if (ink) ink.burn = k; }); return; }
+  const O = nextOrders || makeOrders(); nextOrders = null;
+  const x = inkC.getContext('2d', {willReadFrequently:true});
+  x.drawImage(layers[0],0,0); if (ink) bakeInk(x, false);
+  ink = null;
+  if (!ashSil){                          // the ash pile, kept inside the scroll's footprint
+    ashSil = mk(W,H); const ax = ashSil.getContext('2d');
+    const m = ashMX.createImageData(LW,LH); for (let j=0;j<LW*LH;j++) m.data[j*4+3] = sil[j] ? 255 : 0;
+    ashMX.putImageData(m,0,0);
+    ax.drawImage(layers[0],0,0); ax.drawImage(maskedLayer(ashMC, tmpX, layers[2]),0,0);
+  }
+  const S = (from,to,fi,ti,ms,order,hold=0) => ({from,to,fi,ti,ms:reduce?1:ms*(0.9+R()*0.2),order,jit:O.jit,diff:diffMask(fi,ti),hold:reduce?400:hold});
+  const fire = {base: inkC, T:O.T, settle:O.settle, edge:O.edge, ms: reduce ? 1 : 1650, gEnd: 1.27};
+  const steps = [ S(ashSil, layers[3], 2,3, 460, O.c1, 90), S(layers[3], layers[0], 3,0, 540, O.c2) ];
+  if (sfx.ready && soundOn){ whoosh(1.1, 180, 900, 0.5); for (let i=0;i<6;i++) setTimeout(() => crackle(0.7), i*40); }
+  return new Promise(res => { seq = {phase:'fire', fire, steps, i:0, t:0, done:res}; });
+}
+/* refused or unknown: the words simply fade from the scroll, nothing burns */
+function vanishInk(kind){
+  if (!ink) return Promise.resolve();
+  ink.dustC = kind === 'forbidden' ? [150,32,20] : [92,60,34];
+  ink.prevV = 0;
+  if (sfx.ready && soundOn) whoosh(1.0, 1200, 400, 0.18);
+  return animate(900, k => { ink.vanish = k*1.02; }).then(() => { ink = null; });
+}
+
+function fit(){
+  const st = document.getElementById('stage').getBoundingClientRect();
+  const r = 941/1672;
+  let h = st.height, w = h*r;
+  if (w > st.width){ w = st.width; h = w/r; }
+  cv.style.width = Math.floor(w)+'px'; cv.style.height = Math.floor(h)+'px';
+  const fr = document.getElementById('frame'); fr.style.width = Math.floor(w)+'px'; fr.style.height = Math.floor(h)+'px';
+}
+addEventListener('resize', fit);
+
+let lastF = 0, lastT = 0;
+function tick(t){
+  const dt = Math.min(0.05, lastT ? (t-lastT)/1000 : 0.016); lastT = t;
+  if (!reduce && t - lastF >= FRAME_MS){ frame = (frame+1)%FRAMES; lastF = t; }
+  if (seq) runSeq(dt, t/1000);
+  else { ctx.drawImage(layers[0],0,0); if (ink) drawInk(); }
+  ctx.drawImage(flamesImg, frame*FW,0,FW,FH, 0,0,FW,FH);
+  if (!reduce){ candles(dt); particles(dt, t/1000); }
+  if (pen.vis) drawPen(dt, t/1000);
+  sfxUpdate(dt);
+  requestAnimationFrame(tick);
+}
+
+/* ---------- pixel handwriting ---------- */
+const INK = [86,6,10], INK_SOFT = [118,14,16], WET = [178,22,26], WET_HI = [214,58,52], EMBER = [[240,150,50],[214,84,34],[120,40,20]];
+function makeInk(text){
+  const w = Math.floor(BOX.w/P), h = Math.floor(BOX.h/P);
+  const off = document.createElement('canvas'); off.width = w; off.height = h;
+  const o = off.getContext('2d');
+  const font = s => `700 ${s}px "Dancing Script", "Brush Script MT", cursive`;
+  // fit: one line if possible, else two
+  let lines = [text], size = 30;
+  o.font = font(size);
+  while (size > 15 && o.measureText(text).width > w-6) { size--; o.font = font(size); }
+  if (size <= 15 && text.includes(' ')){
+    const words = text.split(' '); let best = null;
+    for (let i=1;i<words.length;i++){
+      const a = words.slice(0,i).join(' '), b = words.slice(i).join(' ');
+      const m = Math.max(a.length,b.length);
+      if (!best || m < best.m) best = {a,b,m};
+    }
+    lines = [best.a,best.b]; size = 22; o.font = font(size);
+    while (size > 12 && Math.max(...lines.map(l=>o.measureText(l).width)) > w-6){ size--; o.font = font(size); }
+  }
+  o.clearRect(0,0,w,h); o.fillStyle = '#000'; o.textBaseline = 'middle'; o.textAlign = 'center';
+  const lh = size*1.05, top = h/2 - (lines.length-1)*lh/2;
+  lines.forEach((l,i)=>o.fillText(l, w/2, top + i*lh + 1));
+  // threshold into crisp ink pixels with a darker core and a softer edge
+  const src = o.getImageData(0,0,w,h), out = o.createImageData(w,h);
+  const noise = new Float32Array(w*h);
+  for (let i=0;i<w*h;i++){
+    const a = src.data[i*4+3];
+    noise[i] = Math.random();
+    if (a < 96) continue;
+    const c = a > 190 ? INK : INK_SOFT;
+    out.data.set([c[0],c[1],c[2],255], i*4);
+  }
+  // where each line's ink starts/ends, and each column's ink extent (for the pen to follow)
+  const L = lines.length, span = [], prof = [];
+  for (let l=0;l<L;l++){
+    const y0 = L === 2 ? (l ? h>>1 : 0) : 0, y1 = L === 2 ? (l ? h : h>>1) : h;
+    let c0 = -1, c1 = -1; const pr = new Array(w).fill(null);
+    for (let x=0;x<w;x++){ let mn = -1, mx = -1;
+      for (let y=y0;y<y1;y++) if (out.data[(y*w+x)*4+3]){ if (mn < 0) mn = y; mx = y; }
+      if (mn >= 0){ pr[x] = [mn,mx]; if (c0 < 0) c0 = x; c1 = x; } }
+    if (c0 < 0){ c0 = 0; c1 = w-1; }
+    span.push([c0,c1]); prof.push(pr);
+  }
+  return {w,h,data:out, base:out.data.slice(), reveal:0, burn:0, noise, lines:L, span, prof};
+}
+const inkCanvas = document.createElement('canvas');
+function drawInk(){
+  const {w,h,data,base,noise} = ink;
+  inkCanvas.width = w; inkCanvas.height = h;
+  const ic = inkCanvas.getContext('2d');
+  const d = data.data;
+  const revealX = ink.reveal * w;
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+    const i = y*w+x, j = i*4;
+    if (base[j+3] === 0){ d[j+3] = 0; continue; }
+    // multi-line writing: each line written in turn
+    const line = ink.lines === 2 ? (y < (h>>1) ? 0 : 1) : 0;
+    const sp = ink.span[line], pl = (x - sp[0]) / (sp[1] - sp[0] + 1);
+    const per = ink.lines === 2 ? (pl + line)/2 : pl;
+    if (per > ink.reveal){ d[j+3] = 0; continue; }
+    const age = (ink.reveal - per) * ink.lines;   // fresh strokes are wet and bright, then dry dark
+    if (ink.vanish > 0){
+      const n = noise[i];
+      if (n < ink.vanish){
+        if (n >= ink.prevV && Math.random() < 0.1) spawn('dust', (BOX.x + x*P)/PX, (BOX.y + y*P)/PX, {c: ink.dustC});
+        d[j+3] = 0; continue;
+      }
+      if (n < ink.vanish + 0.08){ d[j]=base[j]+60; d[j+1]=base[j+1]+45; d[j+2]=base[j+2]+28; d[j+3]=255; continue; }
+    }
+    if (ink.burn > 0){
+      const n = noise[i];
+      if (n < ink.burn - 0.25){ d[j+3] = 0; continue; }
+      const e = EMBER[(n*7 + ink.burn*12 | 0) % 3];
+      const k = Math.min(1, ink.burn*2.2);
+      d[j]   = base[j]  *(1-k) + e[0]*k;
+      d[j+1] = base[j+1]*(1-k) + e[1]*k;
+      d[j+2] = base[j+2]*(1-k) + e[2]*k;
+      d[j+3] = 255;
+    } else {
+      if (age < 0.16){
+        const k = age/0.16, c = (age < 0.03 && base[j] === INK[0]) ? WET_HI : WET;
+        d[j]=c[0]*(1-k)+base[j]*k; d[j+1]=c[1]*(1-k)+base[j+1]*k; d[j+2]=c[2]*(1-k)+base[j+2]*k;
+      } else { d[j]=base[j]; d[j+1]=base[j+1]; d[j+2]=base[j+2]; }
+      d[j+3]=255;
+    }
+  }
+  ic.putImageData(data,0,0);
+  if (ink.vanish > 0) ink.prevV = ink.vanish;
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 0.94;
+  ctx.drawImage(inkCanvas, 0,0,w,h, BOX.x, BOX.y, w*P, h*P);
+  ctx.restore();
+}
+/* bake the finished writing into a stage layer, only where parchment survives */
+function bakeInk(x, charred){
+  const {w,h,base} = ink, rw = w*P;
+  const img = x.getImageData(BOX.x, BOX.y, rw, h*P), d = img.data;
+  for (let y=0;y<h;y++) for (let xx=0;xx<w;xx++){
+    const j = (y*w+xx)*4; if (!base[j+3]) continue;
+    const q = ((y*P+1)*rw + xx*P+1)*4, r = d[q], g = d[q+1], b = d[q+2], lum = r*.3+g*.59+b*.11;
+    if (!(lum > 80 && lum < 205 && r-b > 35 && r < 240)) continue;
+    let c0 = base[j], c1 = base[j+1], c2 = base[j+2];
+    if (charred){ c0 = Math.min(255, c0+50); c1 += 8; }
+    for (let dy=0;dy<P;dy++) for (let dx=0;dx<P;dx++){
+      const t = ((y*P+dy)*rw + xx*P+dx)*4;
+      d[t] = d[t]*0.06 + c0*0.94; d[t+1] = d[t+1]*0.06 + c1*0.94; d[t+2] = d[t+2]*0.06 + c2*0.94;
+    }
+  }
+  x.putImageData(img, BOX.x, BOX.y);
+}
+function animate(ms, fn){
+  return new Promise(res=>{
+    if (reduce){ fn(1); return res(); }
+    const t0 = performance.now();
+    const step = t => { const k = Math.min(1,(t-t0)/ms); fn(k); k<1 ? requestAnimationFrame(step) : res(); };
+    requestAnimationFrame(step);
+  });
+}
+
+
+
+/* ---------- sound effects, synthesized live: quill scratching, fire, magic ---------- */
+const sfx = {ready:false};
+function initSfx(){
+  const a = audioCtx(); if (!a || sfx.ready) return;
+  const n = a.sampleRate*2, wb = a.createBuffer(1,n,a.sampleRate), bb = a.createBuffer(1,n,a.sampleRate);
+  const w = wb.getChannelData(0), br = bb.getChannelData(0); let last = 0;
+  for (let i=0;i<n;i++){ const x = Math.random()*2-1; w[i] = x; last = (last + 0.02*x)/1.02; br[i] = last*3.5; }
+  sfx.white = wb; sfx.brown = bb;
+  const master = a.createGain(); master.gain.value = soundOn ? 0.9 : 0; master.connect(a.destination); sfx.master = master;
+  const loop = (buf) => { const s = a.createBufferSource(); s.buffer = buf; s.loop = true; s.start(0, Math.random()*1.5); return s; };
+  // quill: bright, narrow scratch whose loudness follows the nib
+  const sc = loop(wb), bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3400; bp.Q.value = 1.4;
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1400;
+  sfx.scratch = a.createGain(); sfx.scratch.gain.value = 0; sc.connect(hp); hp.connect(bp); bp.connect(sfx.scratch); sfx.scratch.connect(master);
+  sfx.scratchBp = bp;
+  // fire: low roar that swells with the flames
+  const ro = loop(bb), lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+  sfx.roar = a.createGain(); sfx.roar.gain.value = 0; ro.connect(lp); lp.connect(sfx.roar); sfx.roar.connect(master); sfx.roarLp = lp;
+  sfx.ready = true;
+}
+function sfxMute(){ if (sfx.master) sfx.master.gain.setTargetAtTime(soundOn ? 0.9 : 0, actx.currentTime, 0.05); }
+function crackle(amp){                  // one dry pop of burning parchment
+  const a = actx, t = a.currentTime, s = a.createBufferSource(); s.buffer = sfx.white;
+  const f = a.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 900 + Math.random()*3500;
+  const g = a.createGain(), d = 0.008 + Math.random()*0.035;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp*(0.3+Math.random()*0.7), t+0.002); g.gain.exponentialRampToValueAtTime(0.0008, t+d);
+  s.connect(f); f.connect(g); g.connect(sfx.master); s.start(t, Math.random()*1.8, d+0.02);
+}
+function whoosh(dur, f0, f1, amp){       // ignition, conjuring and fading-ink swells
+  const a = actx; if (!a || !sfx.ready) return; const t = a.currentTime, s = a.createBufferSource(); s.buffer = sfx.brown;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 0.9;
+  f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t+dur*0.6); f.frequency.exponentialRampToValueAtTime(f0, t+dur);
+  const g = a.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(amp, t+dur*0.3); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  s.connect(f); f.connect(g); g.connect(sfx.master); s.start(t, Math.random()*0.5, dur+0.05);
+}
+const PENTA = [220, 261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3, 784, 880];
+function chime(freq, amp, when=0){        // a cold glassy ping for the magic
+  const a = actx; if (!a || !sfx.ready) return; const t = a.currentTime + when;
+  for (const [m, v] of [[1,1],[2.01,0.35],[3.02,0.12]]){
+    const o = a.createOscillator(); o.type = 'sine'; o.frequency.value = freq*m;
+    const g = a.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(amp*v, t+0.01); g.gain.exponentialRampToValueAtTime(0.0001, t+1.6);
+    o.connect(g); g.connect(sfx.master); o.start(t); o.stop(t+1.7);
+  }
+}
+let penPrevY = 0;
+function sfxUpdate(dt){
+  if (!sfx.ready || !soundOn) return;
+  const t = actx.currentTime;
+  // quill
+  let sg = 0;
+  if (pen.vis && pen.mode === 'write' && pen.lift < 0.35){
+    const vy = Math.abs(pen.y - penPrevY)/Math.max(dt, 0.001);
+    sg = Math.min(0.42, 0.05 + vy*0.0016) * (0.75 + Math.random()*0.5);
+    sfx.scratchBp.frequency.setTargetAtTime(2600 + Math.min(2400, vy*4), t, 0.03);
+  }
+  penPrevY = pen.y;
+  sfx.scratch.gain.setTargetAtTime(sg, t, 0.025);
+  // fire
+  let fire = 0;
+  if (seq && seq.phase === 'fire'){ fire = Math.min(1, 0.25 + frontN/320); }
+  else if (seq && seq.i === 0 && seq.steps[0].fi === 2 && seq.t < seq.steps[0].ms*0.6) fire = 0.25;
+  sfx.roar.gain.setTargetAtTime(fire*0.55, t, fire ? 0.08 : 0.35);
+  sfx.roarLp.frequency.setTargetAtTime(300 + fire*700, t, 0.1);
+  if (fire && Math.random() < dt*(8 + fire*55)) crackle(0.25 + fire*0.55);
+  // magic shimmer while the circle and the new scroll form
+  if (seq && seq.phase === 'steps' && Math.random() < dt*7) chime(PENTA[Math.random()*PENTA.length|0]*(Math.random()<0.3?2:1), 0.05);
+}
+
+/* ---------- the bone pen: its nib follows the writing ---------- */
+const penImg = new Image(); let penShadow = null;
+const PEN_TIP = [1, 428];
+penImg.onload = () => { penShadow = mk(penImg.width, penImg.height); const x = penShadow.getContext('2d');
+  x.drawImage(penImg,0,0); x.globalCompositeOperation = 'source-in'; x.fillStyle = 'rgba(24,8,2,0.45)'; x.fillRect(0,0,penImg.width,penImg.height); };
+penImg.src = 'pen.png';
+const pen = {vis:false, mode:'', x:0, y:0, lift:1, ty:0};
+function penTarget(){
+  const r = Math.min(1, Math.max(0, ink.reveal));
+  const line = ink.lines === 2 ? (r < 0.5 ? 0 : 1) : 0, f = ink.lines === 2 ? (line ? r*2-1 : r*2) : r;
+  const sp = ink.span[line], col = Math.min(sp[1], Math.round(sp[0] + f*(sp[1]-sp[0]+1)));
+  const pr = ink.prof[line][col];
+  const lineMid = ink.lines === 2 ? (line ? ink.h*0.72 : ink.h*0.28) : ink.h*0.5;
+  let ty, lift;
+  if (pr){ const ph = 0.5 + 0.5*Math.sin(col*1.25 + performance.now()/38); ty = pr[0] + (pr[1]-pr[0])*ph; lift = 0; }
+  else { ty = lineMid - 3; lift = 0.6; }
+  return {x: BOX.x + col*P + 1, y: BOX.y + ty*P + 1, lift};
+}
+function drawPen(dt, now){
+  if (pen.mode === 'write' && ink){
+    const t = penTarget(), k = 1 - Math.pow(0.0001, dt);           // smooth, frame-rate independent
+    pen.x += (t.x - pen.x)*Math.min(1, k*1.6); pen.y += (t.y - pen.y)*k; pen.lift += (t.lift - pen.lift)*k;
+    if (pen.lift < 0.3 && R() < dt*14) spawn('dust', pen.x/PX, pen.y/PX, {c:[176,20,26], vy:-(4+R()*8), life:0.5+R()*0.6});
+    if (pen.lift < 0.3 && R() < dt*1.2) spawn('ember', pen.x/PX, pen.y/PX, {life:0.4, vy:-10});
+  }
+  if (!penImg.complete || !penShadow) return;
+  const hgt = pen.lift*22, x = Math.round(pen.x - PEN_TIP[0]), y = Math.round(pen.y - PEN_TIP[1] - hgt);
+  ctx.drawImage(penShadow, x + 12 + Math.round(hgt*0.9), y + 10 + Math.round(hgt*1.4));
+  ctx.drawImage(penImg, x, y);
+}
+const ease3o = k => 1 - Math.pow(1-k, 3), ease3i = k => k*k*k;
+async function penEnter(){
+  if (reduce || !ink) return;
+  const t = (()=>{ const r0 = ink.reveal; ink.reveal = 0; const v = penTarget(); ink.reveal = r0; return v; })();
+  const sx = t.x + 340, sy = t.y - 520;
+  pen.vis = true; pen.mode = 'enter';
+  await animate(420, k => { const e = ease3o(k); pen.x = sx + (t.x - sx)*e; pen.y = sy + (t.y - sy)*e; pen.lift = 1 - e*0.9; });
+  pen.mode = 'write';
+}
+function penExit(){
+  if (!pen.vis) return Promise.resolve();
+  pen.mode = 'exit';
+  const sx = pen.x, sy = pen.y;
+  return animate(480, k => { const e = ease3i(k); pen.x = sx + 360*e; pen.y = sy - 560*e; pen.lift = Math.min(1, pen.lift + 0.08); })
+    .then(() => { pen.vis = false; pen.mode = ''; });
+}
+
+/* ---------- message line ---------- */
+/* ---------- the god's voice: pre-rendered speech played through Web Audio ---------- */
+let soundOn = ls.get('sog.voice') !== 'off', actx = null, current = null;
+const clips = {};
+function audioCtx(){
+  if (!actx){ const AC = window.AudioContext || window.webkitAudioContext; if (AC) try{ actx = new AC(); }catch(e){} }
+  return actx;
+}
+function unlockAudio(){                 // must run inside a tap
+  const a = audioCtx(); if (!a) return;
+  try{ if (a.state === 'suspended') a.resume();
+    const s = a.createBufferSource(); s.buffer = a.createBuffer(1,1,22050); s.connect(a.destination); s.start(0); }catch(e){}
+  try{ initSfx(); }catch(e){}
+}
+function loadClip(slug){
+  const a = audioCtx(); if (!a) return Promise.reject();
+  return clips[slug] ||= fetch('voice/'+slug+'.mp3')
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(ab => new Promise((res, rej) => a.decodeAudioData(ab, res, rej)));
+}
+function setVoiceUI(){ voiceBtn.textContent = 'Sound: ' + (soundOn ? 'on' : 'off'); voiceBtn.setAttribute('aria-pressed', String(soundOn)); }
+setVoiceUI();
+voiceBtn.onclick = () => { soundOn = !soundOn; ls.set('sog.voice', soundOn?'on':'off'); setVoiceUI(); try{ sfxMute(); }catch(e){} if (!soundOn && current) try{ current.stop(); }catch(e){} };
+/* voice generator (meSpeak / eSpeak, runs in the page) for lines with the creature's name */
+let ttsReady = null, fx = null;
+function loadTTS(){
+  return ttsReady ||= new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'tts.js';
+    sc.onload = () => window.godSpeak ? res(window.godSpeak) : rej(); sc.onerror = rej; document.head.appendChild(sc); });
+}
+function fxChain(a){                    // saturated chest, dark cathedral behind the voice
+  if (fx) return fx;
+  const len = a.sampleRate*3.4|0, ir = a.createBuffer(2, len, a.sampleRate);
+  for (let c=0;c<2;c++){ const d = ir.getChannelData(c); let lp = 0;
+    for (let i=0;i<len;i++){ lp += ((Math.random()*2-1) - lp)*0.18; d[i] = lp*2.2*Math.pow(1-i/len, 2.4); } }
+  const conv = a.createConvolver(); conv.buffer = ir;
+  const sat = a.createWaveShaper(), curve = new Float32Array(1024);
+  for (let i=0;i<1024;i++){ const x = i/511.5 - 1; curve[i] = Math.tanh(x*2.2)/Math.tanh(2.2); }
+  sat.curve = curve; sat.oversample = '2x';
+  const low = a.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 150; low.gain.value = 9;
+  const mid = a.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 2400; mid.Q.value = 1; mid.gain.value = -4;
+  const top = a.createBiquadFilter(); top.type = 'lowpass'; top.frequency.value = 3300;
+  const comp = a.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.25;
+  const dry = a.createGain(); dry.gain.value = 0.8; const wet = a.createGain(); wet.gain.value = 0.62;
+  sat.connect(low); low.connect(mid); mid.connect(top); top.connect(dry); top.connect(conv); conv.connect(wet);
+  dry.connect(comp); wet.connect(comp); comp.connect(a.destination);
+  return fx = sat;
+}
+/* a sub-bass dread that swells under every word the god speaks */
+function doomBed(dur){
+  const a = actx; if (!a || !sfx.ready || !soundOn) return;
+  const t = a.currentTime, end = t + dur;
+  const g = a.createGain(); g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.38, t + 0.45); g.gain.setValueAtTime(0.38, Math.max(t+0.5, end - 0.3)); g.gain.exponentialRampToValueAtTime(0.0001, end + 1.8);
+  g.connect(sfx.master);
+  for (const [f, v] of [[41.2, 0.9], [61.7, 0.45], [82.4, 0.18]]){
+    const o = a.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+    const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 0.18 + Math.random()*0.2; lg.gain.value = f*0.012; lfo.connect(lg); lg.connect(o.frequency);
+    const ov = a.createGain(); ov.gain.value = v; o.connect(ov); ov.connect(g); o.start(t); lfo.start(t); o.stop(end + 2); lfo.stop(end + 2);
+  }
+  const n = a.createBufferSource(); n.buffer = sfx.brown; n.loop = true;
+  const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 110;
+  const nv = a.createGain(); nv.gain.value = 0.9; n.connect(lp); lp.connect(nv); nv.connect(g); n.start(t, Math.random()*1.5); n.stop(end + 2);
+}
+/* the first word of judgement lands like a falling mountain */
+function doomBoom(amp=0.8){
+  const a = actx; if (!a || !sfx.ready || !soundOn) return;
+  const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(26, t + 1.3);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(amp, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+  o.connect(g); g.connect(sfx.master); o.start(t); o.stop(t + 2.3);
+  const n = a.createBufferSource(); n.buffer = sfx.brown; const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(60, t + 1.5);
+  const ng = a.createGain(); ng.gain.setValueAtTime(amp*0.9, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+  n.connect(lp); lp.connect(ng); ng.connect(sfx.master); n.start(t, Math.random(), 2);
+}
+const decode = (a, data) => new Promise((res, rej) => a.decodeAudioData(data.slice(0), res, rej));
+const PAUSE_S = {',':0.36, ';':0.42, ':':0.42, '.':0.62, '!':0.68, '?':0.58};
+async function speakGen(text){
+  const a = audioCtx(); if (!soundOn || !a) return false;
+  try{
+    const gs = await loadTTS();
+    if (a.state === 'suspended') await a.resume();
+    const parts = (text.match(/[^,.;:!?]+[,.;:!?]*/g) || [text]).map(t => t.trim()).filter(Boolean);
+    const takes = [];
+    for (const ph of parts){
+      const words = ph.replace(/[,.;:!?]+$/,'');
+      // two takes of each phrase, the second far lower: a doubled, god-like voice
+      const opt = {speed:96, variant:'m3', wordgap:4};
+      const [b1, b2, b3] = await Promise.all([decode(a, gs(words, {...opt, pitch:14})), decode(a, gs(words, {...opt, pitch:0})), decode(a, gs(words, {...opt, pitch:6, variant:'m7'}))]);
+      takes.push({b1, b2, b3, pause: PAUSE_S[ph.slice(-1)] ?? 0.25});
+    }
+    if (current) try{ current.stop(); }catch(e){}
+    const inp = fxChain(a);
+    let t = a.currentTime + 0.05, last = null;
+    for (const tk of takes){
+      const g1 = a.createGain(); g1.gain.value = 0.8; g1.connect(inp);
+      const g2 = a.createGain(); g2.gain.value = 0.75; g2.connect(inp);
+      const g3 = a.createGain(); g3.gain.value = 0.32; g3.connect(inp);
+      const s1 = a.createBufferSource(); s1.buffer = tk.b1; s1.connect(g1);
+      const s2 = a.createBufferSource(); s2.buffer = tk.b2; s2.connect(g2);
+      const s3 = a.createBufferSource(); s3.buffer = tk.b3; s3.playbackRate.value = 0.94; s3.connect(g3);   // a slower, lower ghost trailing the voice
+      s1.start(t); s2.start(t); s3.start(t + 0.025); last = s1;
+      t += Math.max(tk.b1.duration, tk.b2.duration) - 0.06 + tk.pause;   // eSpeak pads a little; trim, then breathe
+    }
+    current = last;
+    doomBed(t - a.currentTime);
+    const total = (t - a.currentTime)*1000;
+    return await new Promise(res => setTimeout(() => res(true), total));
+  }catch(e){ return playClip('generic'); }
+}
+async function playClip(slug){
+  if (slug && typeof slug === 'object') return speakGen(slug.gen);
+  const a = audioCtx(); if (!soundOn || !a || !slug) return false;
+  try{
+    if (a.state === 'suspended') await a.resume();
+    const buf = await loadClip(slug);
+    if (current) try{ current.stop(); }catch(e){}
+    const g = a.createGain(); g.gain.value = 1.0; g.connect(a.destination);
+    const src = a.createBufferSource(); src.buffer = buf; src.connect(g); current = src;
+    doomBed(Math.max(1, buf.duration - 1.6));
+    return await new Promise(res => { src.onended = () => res(true); src.start(0); setTimeout(() => res(true), buf.duration*1000 + 600); });
+  }catch(e){ return false; }
+}
+function clipFor(kind, name){
+  if (kind === 'forbidden' || kind === 'unknown') return kind;
+  if (kind !== 'creature') return 'question';
+  return {gen: `Wiped out all ${name}.`};
+}
+let typing = 0, fadeT = 0;
+async function say(text, kind, clip){
+  const id = ++typing; clearTimeout(fadeT);
+  msg.className = 'msg' + (kind ? ' '+kind : '');
+  msg.textContent = '';
+  if (!text) return;
+  const spoken = playClip(clip);
+  const span = document.createElement('span'), cur = document.createElement('span');
+  cur.className = 'cur'; msg.append(span, cur);
+  for (let i=1;i<=text.length;i++){
+    if (id !== typing) return;
+    span.textContent = text.slice(0,i);
+    const ch = text[i-1], more = i < text.length;
+    if (!reduce) await new Promise(r=>setTimeout(r, more && /[.!?]/.test(ch) ? 600 : more && /[,;:]/.test(ch) ? 340 : 34));
+  }
+  const ok = await spoken;
+  if (id !== typing) return;
+  cur.remove();
+  // clear the words off the scene so the candles and scroll stay visible
+  fadeT = setTimeout(() => { if (id === typing) msg.classList.add('fade'); }, ok ? 1200 : 3200);
+}
+const gate = document.getElementById('gate');
+function openScroll(){
+  if (gate.hidden) return;
+  gate.hidden = true; unlockAudio();
+  say(QUESTION, null, 'question');
+}
+gate.addEventListener('click', () => { openScroll(); });
+['question','forbidden','unknown','generic'].forEach(c => loadClip(c).catch(()=>{}));
+setTimeout(() => loadTTS().catch(()=>{}), 1500);
+
+/* ---------- judging ---------- */
+// Fast local refusals; the judge below catches everything else that targets people.
+const PEOPLE = /\b(humans?|people|persons?|man|men|wom[ae]n|girls?|boys?|kids?|child(ren)?|babies|jews?|jewish|muslims?|islam\w*|christians?|catholics?|hindus?|buddhists?|sikhs?|atheists?|arabs?|blacks?|whites?|asians?|africans?|europeans?|latin[oax]s?|hispanics?|mexicans?|chinese|japanese|indians?|natives?|roma|gypsies|gays?|lesbians?|trans\w*|queers?|lgbt\w*|immigrants?|refugees?|migrants?|foreigners?|disabled|races?|ethnic\w*|nazis?|zionists?|semit\w*)\b/i;
+const ANIMALS = /\b(rats?|mice|mouse|bats?|spiders?|snakes?|ants?|bees?|wasps?|hornets?|mosquito(e)?s?|flies|fly|gnats?|midges?|cockroach(es)?|roaches|ticks?|lice|louse|fleas?|bed ?bugs?|termites?|locusts?|leeches?|slugs?|snails?|worms?|maggots?|moths?|beetles?|scorpions?|centipedes?|wolves|wolf|bears?|sharks?|jellyfish|pigeons?|seagulls?|gulls?|crows?|ravens?|geese|goose|ducks?|cats?|dogs?|horses?|cows?|pigs?|chickens?|sheep|goats?|foxes|fox|rabbits?|squirrels?|raccoons?|rattlesnakes?|vipers?|cobras?|crocodiles?|alligators?|hyenas?|jackals?|lions?|tigers?|eels?|piranhas?|toads?|frogs?|lizards?|ferrets?|weasels?|badgers?|moles?|hamsters?|parrots?|owls?|eagles?|hawks?|vultures?|bacteria|viruses|virus|germs?|fungi|molds?|mites?|aphids?|grasshoppers?|crickets?|dragonflies|butterflies|caterpillars?|stink ?bugs?|horseflies|horsefly)\b/i;
+
+function cleanName(s){ return s.toLowerCase().replace(/[^a-z0-9' -]/g,'').replace(/\s+/g,' ').trim().slice(0,40); }
+
+/* the judgement happens on the server (Cloudflare Worker + Workers AI), which also records the answer */
+async function judge(raw){
+  const t = raw.trim();
+  try{
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 12000);
+    const r = await fetch('/api/judge', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({answer:t}), signal: ctl.signal});
+    clearTimeout(to);
+    if (r.status === 429) return {verdict:'unknown', slow:true};
+    if (r.ok){ const j = await r.json(); if (['forbidden','creature','unknown'].includes(j.verdict)) return j; }
+  }catch(e){ /* offline or server down: judge locally, nothing is recorded */ }
+  if (t === '@' || PEOPLE.test(t)) return {verdict:'forbidden'};
+  if (ANIMALS.test(t)) return {verdict:'creature', name:cleanName(t)};
+  return {verdict:'unknown'};
+}
+
+/* ---------- tally of the slain (shared by every player, from the server) ---------- */
+let myLast = null, tally = null;
+let answered = ls.get('sog.answered') === '1';
+function record(){ /* the server already recorded this answer when it judged it */ }
+async function loadTally(){
+  try{ const r = await fetch('/api/tally', {cache:'no-store'}); if (r.ok) tally = await r.json(); }catch(e){}
+  return tally;
+}
+async function renderLedger(){
+  const rows = document.getElementById('rows'), sub = document.getElementById('ledgerSub');
+  if (!tally){ sub.textContent = 'Reading the ledger…'; rows.textContent = ''; }
+  await loadTally();
+  rows.textContent = '';
+  if (!tally){ sub.textContent = 'The ledger cannot be reached right now. Try again in a moment.'; return; }
+  const {creatures = [], slain = 0, forbidden = 0, unknown = 0} = tally;
+  const total = slain + forbidden + unknown;
+  sub.textContent = `${total.toLocaleString('en')} scroll${total===1?'':'s'} read by mortals so far.`;
+  const pct = n => total ? Math.round(n/total*1000)/10 : 0;
+  const add = (name,n,cls) => {
+    const li = document.createElement('li'); li.className = 'row ' + (cls||'');
+    const a = document.createElement('span'); a.className='name'; a.textContent = name;
+    const b = document.createElement('span'); b.className='n'; b.textContent = n.toLocaleString('en');
+    const c = document.createElement('span'); c.className='p'; c.textContent = pct(n)+'%';
+    const bar = document.createElement('span'); bar.className='bar'; const i = document.createElement('i'); i.style.width = Math.max(pct(n), n ? 0.6 : 0)+'%'; bar.append(i);
+    li.append(a,b,c,bar); rows.append(li);
+  };
+  creatures.forEach(c => add(c.name, c.n, c.name === myLast ? 'mine' : ''));
+  if (myLast && !creatures.some(c => c.name === myLast)) add(myLast + ' (yours)', 1, 'mine');
+  if (forbidden || unknown){ const hr = document.createElement('hr'); hr.className='sep'; rows.append(hr); }
+  if (forbidden) add('Refused by the gods', forbidden, 'ref');
+  if (unknown) add('Creatures not of this world', unknown, 'unk');
+}
+tallyBtn.hidden = !answered;
+tallyBtn.onclick = () => {
+  const open = ledger.hidden;
+  ledger.hidden = !open; tallyBtn.setAttribute('aria-pressed', String(open));
+  tallyBtn.textContent = open ? 'Back to the scroll' : 'Tally of the slain';
+  if (open) renderLedger();
+};
+
+/* ---------- the reading ---------- */
+let busy = false;
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = input.value.trim().replace(/\s+/g,' ');
+  if (!text || busy) return;
+  busy = true; input.disabled = true; inscribeBtn.disabled = true;
+  if (!ledger.hidden) tallyBtn.click();
+  try{ await document.fonts.load('700 30px "Dancing Script"'); }catch(_){}
+  ink = makeInk(text);
+  const verdictP = judge(text);
+  if (!gate.hidden){ gate.hidden = true; unlockAudio(); }
+  say('');
+  await penEnter();
+  await animate(Math.min(3200, 900 + text.length*110), k => { ink.reveal = k; });
+  penExit();
+  animate(600, k => { if (ink) ink.reveal = 1 + 0.25*k; });   // the last strokes dry
+  const v = await verdictP;
+  const line = v.slow ? 'Patience, mortal. The scroll needs a moment.' : v.verdict === 'creature' ? `Wiped out all ${v.name}.` : LINES[v.verdict];
+  myLast = v.verdict === 'creature' ? v.name : null;
+  record(v);
+  if (v.verdict !== 'unknown' && !v.slow) doomBoom(v.verdict === 'forbidden' ? 0.95 : 0.75);
+  await say(line, v.verdict, v.slow ? null : clipFor(v.verdict, v.name));
+  answered = true; ls.set('sog.answered','1'); tallyBtn.hidden = false;
+  if (v.verdict === 'creature'){
+    await new Promise(r=>setTimeout(r, reduce ? 1200 : 1300));
+    await burnSequence();          // the scroll is consumed, a new one is conjured onto the desk
+  } else {
+    await new Promise(r=>setTimeout(r, reduce ? 1200 : 1500));
+    await vanishInk(v.verdict);    // nothing happens; the words fade away
+  }
+  ink = null;
+  input.value = ''; input.disabled = false; inscribeBtn.disabled = false; busy = false;
+  await say(QUESTION, null, 'question');
+  input.focus({preventScroll:true});
+});
+
+})();
+</script>
+
+</body>
+</html>

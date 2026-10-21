@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Keeper's Ledger · Scroll of Genocide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Grenze+Gotisch:wght@600&display=swap">
+<style>
+/* Layout: one column ledger — password gate, tabs for the private lists, a counted table below */
+:root{--bg:#0c0907;--stone:#1a1410;--line:#3a2c20;--text:#dccbaa;--dim:#8f7c62;--flame:#f2a33a;--blood:#d2452c;--ash:#a59a8c;color-scheme:dark}
+html,body{margin:0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--text);font-family:"VT323",ui-monospace,monospace;font-size:20px}
+main{max-width:52em;margin:0 auto;padding:24px 16px 48px;display:grid;gap:16px}
+h1{font-family:"Grenze Gotisch",serif;font-weight:600;color:var(--flame);font-size:34px;margin:0}
+.sub{color:var(--dim);margin:0}
+form,.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input{font:inherit;background:var(--stone);color:var(--text);border:1px solid var(--line);padding:6px 10px;min-width:0;flex:1}
+button{font:inherit;background:var(--stone);color:var(--flame);border:1px solid var(--line);padding:4px 12px;cursor:pointer}
+button[aria-pressed="true"]{border-color:var(--flame);background:#2a1d12}
+button:focus-visible,input:focus-visible{outline:2px solid var(--flame);outline-offset:1px}
+.tab-forbidden[aria-pressed="true"]{color:var(--blood);border-color:var(--blood)}
+.wrap{overflow-x:auto;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:normal;position:sticky;top:0;background:var(--bg)}
+td.n{text-align:right;width:4em}
+td.t{color:var(--dim);white-space:nowrap;width:9em}
+td.txt{overflow-wrap:anywhere}
+tr.hidden td.txt{text-decoration:line-through;color:var(--dim)}
+.v-forbidden{color:var(--blood)} .v-unknown{color:var(--ash)} .v-creature{color:var(--flame)}
+.msg{color:var(--dim);min-height:1.2em}
+.small{font-size:16px;padding:2px 8px}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Keeper's Ledger</h1>
+    <p class="sub">Private lists of every answer. Only you can open this page.</p>
+  </div>
+
+  <form id="login">
+    <label for="pw" hidden>Admin password</label>
+    <input id="pw" type="password" placeholder="Admin password" autocomplete="current-password">
+    <button type="submit">Open the ledger</button>
+  </form>
+
+  <section id="ledger" hidden>
+    <div class="bar" role="group" aria-label="Lists">
+      <button class="tab tab-forbidden" data-type="forbidden" aria-pressed="true">Forbidden</button>
+      <button class="tab" data-type="unknown" aria-pressed="false">Not of this world</button>
+      <button class="tab" data-type="creature" aria-pressed="false">Wiped out</button>
+      <button class="tab" data-type="recent" aria-pressed="false">Latest 200</button>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+    <p class="msg" id="msg"></p>
+    <div class="wrap"><table><thead id="head"></thead><tbody id="rows"></tbody></table></div>
+  </section>
+</main>
+<script>
+(() => {
+let key = ''; try{ key = sessionStorage.getItem('sog.admin') || ''; }catch(e){}
+let type = 'forbidden';
+const $ = id => document.getElementById(id);
+const fmt = ms => ms ? new Date(ms).toLocaleString('en-GB', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
+async function api(path, opts={}){
+  const r = await fetch(path, {...opts, headers:{'x-admin-key': key, 'content-type':'application/json', ...(opts.headers||{})}});
+  if (r.status === 401) throw new Error('auth');
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+function cell(tr, text, cls){ const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = text; tr.append(td); return td; }
+async function load(){
+  $('msg').textContent = 'Loading…';
+  try{
+    const {rows} = await api('/api/admin?type=' + type);
+    const head = $('head'), body = $('rows'); head.textContent = ''; body.textContent = '';
+    const hr = document.createElement('tr');
+    const cols = type === 'recent' ? ['Answer', 'Verdict', 'When'] : type === 'creature' ? ['Creature', 'Times', 'Last', ''] : ['Answer', 'Times', 'Last'];
+    cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; hr.append(th); }); head.append(hr);
+    for (const r of rows){
+      const tr = document.createElement('tr');
+      if (type === 'recent'){
+        cell(tr, r.text, 'txt'); cell(tr, r.verdict === 'creature' ? 'wiped out: ' + r.name : r.verdict === 'unknown' ? 'not of this world' : 'forbidden', 'v-' + r.verdict); cell(tr, fmt(r.created), 't');
+      } else {
+        if (r.hidden) tr.className = 'hidden';
+        cell(tr, r.label, 'txt'); cell(tr, r.n, 'n'); cell(tr, fmt(r.last), 't');
+        if (type === 'creature'){
+          const td = document.createElement('td'), b = document.createElement('button'), f = document.createElement('button');
+          b.className = f.className = 'small';
+          b.textContent = r.hidden ? 'Show' : 'Hide'; b.title = r.hidden ? 'Show on the public tally again' : 'Remove from the public tally';
+          b.onclick = async () => { await api('/api/admin', {method:'POST', body: JSON.stringify({action: r.hidden ? 'unhide' : 'hide', name: r.key})}); load(); };
+          f.textContent = 'Forbid'; f.title = 'Hide it and refuse this answer from now on';
+          f.onclick = async () => { await api('/api/admin', {method:'POST', body: JSON.stringify({action:'forbid', name: r.key})}); load(); };
+          td.append(b, ' ', f); tr.append(td);
+        }
+      }
+      body.append(tr);
+    }
+    const n = rows.length;
+    $('msg').textContent = n ? (type === 'recent' ? `Latest ${n} answer${n===1?'':'s'}.` : `${n} different answer${n===1?'':'s'}.`) : 'Nothing here yet.';
+  }catch(e){
+    if (e.message === 'auth'){ $('ledger').hidden = true; $('login').hidden = false; $('msg').textContent = ''; alertPw('Wrong password.'); }
+    else $('msg').textContent = 'Could not load the list (' + e.message + '). Try Refresh.';
+  }
+}
+function alertPw(t){ $('pw').value = ''; $('pw').placeholder = t + ' Try again'; $('pw').focus(); }
+$('login').addEventListener('submit', e => { e.preventDefault(); key = $('pw').value; try{ sessionStorage.setItem('sog.admin', key); }catch(_){}
+  $('login').hidden = true; $('ledger').hidden = false; load(); });
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  type = b.dataset.type; document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-pressed', String(x === b))); load(); });
+$('refresh').onclick = load;
+if (key){ $('login').hidden = true; $('ledger').hidden = false; load(); }
+})();
+</script>
+</body>
+</html>
